@@ -11,7 +11,7 @@ Add to configuration.yaml:
 climate:
   - platform: bmr
     host: [IP ADDRESS TO ATREA UNIT]
-    user: [USER NAME FOR WEB UI TO ATREA UNIT]
+    username: [USER NAME FOR WEB UI TO ATREA UNIT]
     password: [PASSWORD FOR WEB UI TO ATREA UNIT]
 ```
 
