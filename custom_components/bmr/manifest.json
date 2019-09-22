@@ -1,0 +1,8 @@
+{
+    "domain": "bmr",
+    "name": "BMR",
+    "documentation": "https://github.com/slesinger/HomeAssistant-BMR",
+    "dependencies": [],
+    "codeowners": ["@slesinger"],
+    "requirements": ["pybmr==0.1"]
+  }
