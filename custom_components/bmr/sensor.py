@@ -3,7 +3,7 @@ Support for BMR HC64 Heating Regulation.
 
 configuration.yaml
 
-climate:
+sensor:
   - platform: bmr
     host: ip
     user: user
@@ -13,15 +13,13 @@ climate:
 __version__ = "1.0"
 
 import logging
-#import json
 import voluptuous as vol
-#import re
 
 from datetime import timedelta
 
 from homeassistant.components.sensor import PLATFORM_SCHEMA
 
-from homeassistant.const import (STATE_ON, STATE_OFF, CONF_NAME, CONF_HOST, CONF_USERNAME, CONF_PASSWORD)
+from homeassistant.const import (CONF_NAME, CONF_HOST, CONF_USERNAME, CONF_PASSWORD)
 from homeassistant.components.climate.const import (HVAC_MODE_OFF, HVAC_MODE_AUTO, HVAC_MODE_COOL)
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.entity import Entity
@@ -50,7 +48,6 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
     if cnt == None:
         raise Exception("Cannot connect to BMR")
     sensors = []
-    sensors.append(Hdo(bmr))
     bmr_common = BmrCommon(bmr)
     sensors.append(bmr_common)
     add_entities(sensors)
@@ -62,45 +59,6 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
 
     hass.bus.listen('state_changed', handle_event)
 
-
-
-class Hdo(Entity):
-
-    def __init__(self, bmr):
-        import pybmr
-        self._bmr = bmr
-        self._icon = "mdi:restart"
-        self._state = None
-        self.update()
-
-    @property
-    def should_poll(self):
-        return True
-
-    @property
-    def unit_of_measurement(self):
-        return 'nizky tarif'
-
-    @property
-    def icon(self):
-        return self._icon
-
-    @property
-    def state(self):
-        return STATE_ON if self._state else STATE_OFF
-
-    @property
-    def name(self):
-        return 'HDO'
-
-    @property
-    def device_class(self):
-        return 'power'
-
-    @Throttle(MIN_TIME_BETWEEN_SCANS)
-    def update(self):
-        self._state = self._bmr.loadHDO()
-        self._icon = 'mdi:power-plug' if self._state else 'mdi:power-plug-off'
 
 
 class BmrCommon(Entity):
@@ -124,11 +82,6 @@ class BmrCommon(Entity):
     def icon(self):
         return self._icon
 
-
-    @property
-    def hvac_modes(self):
-        _LOGGER.error("hvac mmoes")
-        return [HVAC_MODE_OFF, HVAC_MODE_COOL, HVAC_MODE_AUTO]
 
     @property
     def state(self):
@@ -161,6 +114,8 @@ class BmrCommon(Entity):
     def set_hvac_mode(self, hvac_mode):
 
         if hvac_mode == 'auto':
+            hvac_mode = HVAC_MODE_AUTO
+        if hvac_mode == 'rozvrh':
             hvac_mode = HVAC_MODE_AUTO
         if hvac_mode == 'utlum':
             hvac_mode = HVAC_MODE_COOL

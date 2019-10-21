@@ -33,7 +33,7 @@ _LOGGER = logging.getLogger(__name__)
 #DEFAULT_NAME = "BMR"
 #STATE_MANUAL = 'manual'
 #STATE_UNKNOWN = 'unknown'
-#BMR_WARN_CANNOTCONNECT = 9
+BMR_WARN_CANNOTCONNECT = 9
 HVAC_MODES = [HVAC_MODE_OFF, HVAC_MODE_COOL, HVAC_MODE_AUTO, HVAC_MODE_HEAT_COOL]
 
 CHANNELS = "honza"
@@ -59,7 +59,6 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_PASSWORD): cv.string,
     vol.Required(CHANNELS): vol.All(cv.ensure_list, [CHANNEL_SCHEMA])
 })
-#    vol.Required(CHANNELS): vol.All(cv.ensure_list, [CHANNEL_SCHEMA])
 
 
 def setup_platform(hass, config, add_devices, discovery_info=None):
