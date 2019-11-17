@@ -19,7 +19,6 @@ import re
 
 from datetime import timedelta
 
-from homeassistant.components.binary_sensor import BinarySensorDevice
 from homeassistant.components.climate import (ClimateDevice, PLATFORM_SCHEMA)
 from homeassistant.components.climate.const import (SUPPORT_TARGET_TEMPERATURE, ATTR_HVAC_MODE, HVAC_MODE_OFF, HVAC_MODE_AUTO, HVAC_MODE_COOL, HVAC_MODE_HEAT_COOL, CURRENT_HVAC_OFF, CURRENT_HVAC_HEAT, CURRENT_HVAC_COOL, CURRENT_HVAC_IDLE)
 

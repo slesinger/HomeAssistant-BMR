@@ -21,7 +21,7 @@ from homeassistant.components.sensor import PLATFORM_SCHEMA
 
 from homeassistant.const import (STATE_ON, STATE_OFF, CONF_NAME, CONF_HOST, CONF_USERNAME, CONF_PASSWORD)
 import homeassistant.helpers.config_validation as cv
-from homeassistant.helpers.entity import Entity
+from homeassistant.components.binary_sensor import BinarySensorDevice
 from homeassistant.util import Throttle
 
 MIN_TIME_BETWEEN_SCANS = timedelta(seconds=60)
@@ -48,7 +48,7 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
     add_entities(sensors)
 
 
-class Hdo(Entity):
+class Hdo(BinarySensorDevice):
 
     def __init__(self, bmr):
         import pybmr
@@ -56,6 +56,10 @@ class Hdo(Entity):
         self._icon = "mdi:restart"
         self._state = None
         self.update()
+
+    @property
+    def name(self):
+        return 'HDO'
 
     @property
     def should_poll(self):
@@ -72,10 +76,6 @@ class Hdo(Entity):
     @property
     def is_on(self):
         return self._state
-
-    @property
-    def state(self):
-        return STATE_ON if self._state else STATE_OFF
 
     @property
     def device_class(self):
