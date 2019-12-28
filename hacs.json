@@ -7,5 +7,5 @@
       "binary_sensor"
     ],
     "country": "CZ",
-    "homeassistant": "0.99.2"
+    "homeassistant": "0.103.0"
   }

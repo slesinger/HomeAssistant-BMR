@@ -4,5 +4,5 @@
     "documentation": "https://github.com/slesinger/HomeAssistant-BMR",
     "dependencies": [],
     "codeowners": ["@slesinger"],
-    "requirements": ["pybmr==0.5"]
+    "requirements": ["pybmr==0.6"]
   }
