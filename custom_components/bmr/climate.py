@@ -172,26 +172,38 @@ class Bmr(ClimateDevice):
         self.manualUpdate()
 
     def manualUpdate(self):
-        was_filled = False
         self._warning = None
+        room_status = None
+        floor_status = None
+
         if self._floor_circuit_id != None:
             floor_status = self._bmr.getStatus(self._floor_circuit_id)
-            if(floor_status != None):
-                self.manualUpdateFill(floor_status, 'floor')
-                was_filled = True
 
         if self._circuit_id != None:
-            status = self._bmr.getStatus(self._circuit_id)
-            if(status != None):
-                self.manualUpdateFill(status, 'room')
-                was_filled = True
-        else: # Ensure required attributes are filled
-            if self._current_temperature == None:
-                self._current_temperature = floor_status['current_temp']
-            if self._target_temperature == None:
-                self._target_temperature = floor_status['required_temp']
+            room_status = self._bmr.getStatus(self._circuit_id)
 
-        if was_filled == False:
+        self._name = self.atLeastRoom(room_status, floor_status, 'name')
+        self._warning = self.atLeastRoom(room_status, floor_status, 'warning') #room or floor, any returns warning
+
+        if room_status:
+            self._current_temperature = room_status['current_temp']
+            self._target_temperature = room_status['required_temp']
+        if floor_status:
+            self._current_floor_temperature = floor_status['current_temp']
+            self._max_allowed_floor_temperature = floor_status['required_temp']
+
+        summer = self.atLeastRoom(room_status, floor_status, 'summer')
+        cooling = self.atLeastRoom(room_status, floor_status, 'cooling')
+        heating = self.bothRoomFloorHeating(room_status, floor_status, 'heating')
+        self.resolveActionModeIcon(summer, cooling, heating)
+
+        # Ensure required attributes are filled
+        if self._current_temperature == None:
+            self._current_temperature = self.atLeastRoom(room_status, floor_status, 'current_temp')
+        if self._target_temperature == None:
+            self._target_temperature = self.atLeastRoom(room_status, floor_status, 'required_temp')
+
+        if not room_status and not floor_status:
             self._warning = BMR_WARN_CANNOTCONNECT
             self._current_temperature = None
             self._target_temperature = None
@@ -202,34 +214,46 @@ class Bmr(ClimateDevice):
             self._icon = "mdi:null"
 
 
-
-    # It is assumed that for channels having both floor and room circuits the floor will get filled first and will get overwritten by room eventually
-    def manualUpdateFill(self, status, type):
-        self._name = status['name']
+    def resolveActionModeIcon(self, summer, cooling, heating):
         #_LOGGER.debug("BMR status in manual update {}".format(status))
-        if status['summer'] == 0 and status['cooling'] == 0 and status['heating'] == 0:
+        if summer == 0 and cooling == 0 and heating == 0:
             self._current_hvac_action = CURRENT_HVAC_IDLE
             self._current_hvac_mode = self.resolve_auto_mode()
             self._icon = "mdi:sleep"
-        if status['summer'] == 0 and status['cooling'] == 1 and status['heating'] == 0:
+        if summer == 0 and cooling == 1 and heating == 0:
             self._current_hvac_action = CURRENT_HVAC_COOL
             self._current_hvac_mode = HVAC_MODE_COOL
             self._icon = "mdi:snowflake"
-        if status['summer'] == 1 and status['heating'] == 0:
+        if summer == 1 and heating == 0:
             self._current_hvac_action = CURRENT_HVAC_OFF
             self._current_hvac_mode = HVAC_MODE_OFF
             self._icon = "mdi:white-balance-sunny"
-        if status['heating'] == 1:
+        if heating == 1:
             self._current_hvac_action = CURRENT_HVAC_HEAT
             self._current_hvac_mode = self.resolve_auto_mode()
             self._icon = "mdi:radiator"
-        if type == 'room':
-            self._current_temperature = status['current_temp']
-            self._target_temperature = status['required_temp']
-        if type == 'floor':
-            self._current_floor_temperature = status['current_temp']
-            self._max_allowed_floor_temperature = status['required_temp']
-        self._warning = status['warning'] #TODO room warning overwrites floor warning, needs condition here
+
+    def bothRoomFloorHeating(self, room, floor, name):
+        r = 1
+        f = 1
+        if room and room[name] == 0:
+            r = 0
+        if floor and floor[name] == 0:
+            f = 0
+        if r and f:
+            return 1
+        else:
+            return 0
+
+    def atLeastRoom(self, room, floor, name):
+        if room and room[name]:
+            return room[name]
+        else:
+            if floor and floor[name]:
+                return floor[name]
+            else:
+                return 0 # should not get here, 0 does not work just for status['name']
+
 
     def resolve_auto_mode(self):
         mode = self._bmr.get_mode_id(self._circuit_id)
