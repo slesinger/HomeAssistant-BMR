@@ -86,6 +86,7 @@ class Bmr(ClimateDevice):
         self._schedule_mode_id = config.get(SCH_MODE_ID)
         self._ai_mode_id = config.get(AI_MODE_ID)
         self._bmr = bmr
+        self._heating = 0
         self._warning = None
         self._name = None
         self._channel_name = config.get(NAME)
@@ -132,6 +133,7 @@ class Bmr(ClimateDevice):
         attributes = {}
         attributes['current_floor_temp'] = self._current_floor_temperature
         attributes['max_allowed_floor_temperature'] = self._max_allowed_floor_temperature
+        attributes['heating'] = None if self._heating == 0 else self._heating
         attributes['warning'] = self._warning
         return attributes
 
@@ -194,8 +196,8 @@ class Bmr(ClimateDevice):
 
         summer = self.atLeastRoom(room_status, floor_status, 'summer')
         cooling = self.atLeastRoom(room_status, floor_status, 'cooling')
-        heating = self.bothRoomFloorHeating(room_status, floor_status, 'heating')
-        self.resolveActionModeIcon(summer, cooling, heating)
+        self._heating = self.bothRoomFloorHeating(room_status, floor_status, 'heating')
+        self.resolveActionModeIcon(summer, cooling, self._heating)
 
         # Ensure required attributes are filled
         if self._current_temperature == None:
@@ -205,6 +207,7 @@ class Bmr(ClimateDevice):
 
         if not room_status and not floor_status:
             self._warning = BMR_WARN_CANNOTCONNECT
+            self._heating = 0
             self._current_temperature = None
             self._target_temperature = None
             self._max_allowed_floor_temperature = None
@@ -228,7 +231,7 @@ class Bmr(ClimateDevice):
             self._current_hvac_action = CURRENT_HVAC_OFF
             self._current_hvac_mode = HVAC_MODE_OFF
             self._icon = "mdi:white-balance-sunny"
-        if heating == 1:
+        if heating == 2: # both room and floor want to heat
             self._current_hvac_action = CURRENT_HVAC_HEAT
             self._current_hvac_mode = self.resolve_auto_mode()
             self._icon = "mdi:radiator"
@@ -240,10 +243,7 @@ class Bmr(ClimateDevice):
             r = 0
         if floor and floor[name] == 0:
             f = 0
-        if r and f:
-            return 1
-        else:
-            return 0
+        return r + f
 
     def atLeastRoom(self, room, floor, name):
         if room and room[name]:
