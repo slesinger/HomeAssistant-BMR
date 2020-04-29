@@ -31,7 +31,6 @@ from homeassistant.util import Throttle
 
 MIN_TIME_BETWEEN_SCANS = timedelta(seconds=60)
 _LOGGER = logging.getLogger(__name__)
-HVAC_MODES = [HVAC_MODE_OFF, HVAC_MODE_COOL, HVAC_MODE_AUTO]
 
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
@@ -69,8 +68,6 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
 
 class BmrCommon(Entity):
     def __init__(self, bmr):
-        import pybmr
-
         self._bmr = bmr
         self._icon = "mdi:restart"
         self._current_hvac_mode = None
