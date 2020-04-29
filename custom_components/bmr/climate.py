@@ -19,19 +19,39 @@ import re
 
 from datetime import timedelta
 
-from homeassistant.components.climate import (ClimateEntity, PLATFORM_SCHEMA)
-from homeassistant.components.climate.const import (SUPPORT_TARGET_TEMPERATURE, ATTR_HVAC_MODE, HVAC_MODE_OFF, HVAC_MODE_AUTO, HVAC_MODE_COOL, HVAC_MODE_HEAT_COOL, CURRENT_HVAC_OFF, CURRENT_HVAC_HEAT, CURRENT_HVAC_COOL, CURRENT_HVAC_IDLE)
+from homeassistant.components.climate import ClimateEntity, PLATFORM_SCHEMA
+from homeassistant.components.climate.const import (
+    SUPPORT_TARGET_TEMPERATURE,
+    ATTR_HVAC_MODE,
+    HVAC_MODE_OFF,
+    HVAC_MODE_AUTO,
+    HVAC_MODE_COOL,
+    HVAC_MODE_HEAT_COOL,
+    CURRENT_HVAC_OFF,
+    CURRENT_HVAC_HEAT,
+    CURRENT_HVAC_COOL,
+    CURRENT_HVAC_IDLE,
+)
 
-from homeassistant.const import (STATE_ON, STATE_OFF, CONF_NAME, CONF_HOST, CONF_USERNAME, CONF_PASSWORD, TEMP_CELSIUS, ATTR_TEMPERATURE)
+from homeassistant.const import (
+    STATE_ON,
+    STATE_OFF,
+    CONF_NAME,
+    CONF_HOST,
+    CONF_USERNAME,
+    CONF_PASSWORD,
+    TEMP_CELSIUS,
+    ATTR_TEMPERATURE,
+)
 import homeassistant.helpers.config_validation as cv
 from homeassistant.util import Throttle
 
 MIN_TIME_BETWEEN_SCANS = timedelta(seconds=60)
 SUPPORT_FLAGS = SUPPORT_TARGET_TEMPERATURE
 _LOGGER = logging.getLogger(__name__)
-#DEFAULT_NAME = "BMR"
-#STATE_MANUAL = 'manual'
-#STATE_UNKNOWN = 'unknown'
+# DEFAULT_NAME = "BMR"
+# STATE_MANUAL = 'manual'
+# STATE_UNKNOWN = 'unknown'
 BMR_WARN_CANNOTCONNECT = 9
 HVAC_MODES = [HVAC_MODE_OFF, HVAC_MODE_COOL, HVAC_MODE_AUTO, HVAC_MODE_HEAT_COOL]
 
@@ -48,25 +68,28 @@ CHANNEL_SCHEMA = vol.Schema(
         vol.Optional(SCH_MODE_ID): vol.All(vol.Coerce(int), vol.Range(min=0, max=31)),
         vol.Optional(AI_MODE_ID): vol.All(vol.Coerce(int), vol.Range(min=0, max=31)),
         vol.Optional(FLOOR): vol.All(vol.Coerce(int), vol.Range(min=0, max=31)),
-        vol.Optional(ROOM): vol.All(vol.Coerce(int), vol.Range(min=0, max=31))
+        vol.Optional(ROOM): vol.All(vol.Coerce(int), vol.Range(min=0, max=31)),
     }
 )
 
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
-    vol.Required(CONF_HOST): cv.string,
-    vol.Required(CONF_USERNAME): cv.string,
-    vol.Required(CONF_PASSWORD): cv.string,
-    vol.Required(CHANNELS): vol.All(cv.ensure_list, [CHANNEL_SCHEMA])
-})
+PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
+    {
+        vol.Required(CONF_HOST): cv.string,
+        vol.Required(CONF_USERNAME): cv.string,
+        vol.Required(CONF_PASSWORD): cv.string,
+        vol.Required(CHANNELS): vol.All(cv.ensure_list, [CHANNEL_SCHEMA]),
+    }
+)
 
 
 def setup_platform(hass, config, add_devices, discovery_info=None):
     import pybmr
+
     host = config.get(CONF_HOST)
     user = config.get(CONF_USERNAME)
     password = config.get(CONF_PASSWORD)
 
-    bmr = pybmr.Bmr(host, user, password) # Test connectivity
+    bmr = pybmr.Bmr(host, user, password)  # Test connectivity
     cnt = bmr.getNumCircuits()
     if cnt == None:
         raise Exception("Cannot connect to BMR")
@@ -78,9 +101,9 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
 
 
 class Bmr(ClimateEntity):
-
     def __init__(self, bmr, config):
         import pybmr
+
         self._circuit_id = config.get(ROOM)
         self._floor_circuit_id = config.get(FLOOR)
         self._schedule_mode_id = config.get(SCH_MODE_ID)
@@ -99,7 +122,6 @@ class Bmr(ClimateEntity):
         self._unit = "Status"
         self._icon = "mdi:restart"
         self.update()
-
 
     @property
     def should_poll(self):
@@ -124,17 +146,17 @@ class Bmr(ClimateEntity):
     @property
     def name(self):
         if self._channel_name != None:
-            return '{}'.format(self._channel_name)
+            return "{}".format(self._channel_name)
         else:
-            return '{}'.format(self._name)
+            return "{}".format(self._name)
 
     @property
     def device_state_attributes(self):
         attributes = {}
-        attributes['current_floor_temp'] = self._current_floor_temperature
-        attributes['max_allowed_floor_temperature'] = self._max_allowed_floor_temperature
-        attributes['heating'] = None if self._heating == 0 else self._heating
-        attributes['warning'] = self._warning
+        attributes["current_floor_temp"] = self._current_floor_temperature
+        attributes["max_allowed_floor_temperature"] = self._max_allowed_floor_temperature
+        attributes["heating"] = None if self._heating == 0 else self._heating
+        attributes["warning"] = self._warning
         return attributes
 
     @property
@@ -152,11 +174,11 @@ class Bmr(ClimateEntity):
     @property
     def hvac_mode(self):
         return self._current_hvac_mode
-    
+
     @property
     def hvac_action(self):
         return self._current_hvac_action
-    
+
     @property
     def current_temperature(self):
         return float(self._current_temperature)
@@ -184,26 +206,26 @@ class Bmr(ClimateEntity):
         if self._circuit_id != None:
             room_status = self._bmr.getStatus(self._circuit_id)
 
-        self._name = self.atLeastRoom(room_status, floor_status, 'name')
-        self._warning = self.atLeastRoom(room_status, floor_status, 'warning') #room or floor, any returns warning
+        self._name = self.atLeastRoom(room_status, floor_status, "name")
+        self._warning = self.atLeastRoom(room_status, floor_status, "warning")  # room or floor, any returns warning
 
         if room_status:
-            self._current_temperature = room_status['current_temp']
-            self._target_temperature = room_status['required_temp']
+            self._current_temperature = room_status["current_temp"]
+            self._target_temperature = room_status["required_temp"]
         if floor_status:
-            self._current_floor_temperature = floor_status['current_temp']
-            self._max_allowed_floor_temperature = floor_status['required_temp']
+            self._current_floor_temperature = floor_status["current_temp"]
+            self._max_allowed_floor_temperature = floor_status["required_temp"]
 
-        summer = self.atLeastRoom(room_status, floor_status, 'summer')
-        cooling = self.atLeastRoom(room_status, floor_status, 'cooling')
-        self._heating = self.bothRoomFloorHeating(room_status, floor_status, 'heating')
+        summer = self.atLeastRoom(room_status, floor_status, "summer")
+        cooling = self.atLeastRoom(room_status, floor_status, "cooling")
+        self._heating = self.bothRoomFloorHeating(room_status, floor_status, "heating")
         self.resolveActionModeIcon(summer, cooling, self._heating)
 
         # Ensure required attributes are filled
         if self._current_temperature == None:
-            self._current_temperature = self.atLeastRoom(room_status, floor_status, 'current_temp')
+            self._current_temperature = self.atLeastRoom(room_status, floor_status, "current_temp")
         if self._target_temperature == None:
-            self._target_temperature = self.atLeastRoom(room_status, floor_status, 'required_temp')
+            self._target_temperature = self.atLeastRoom(room_status, floor_status, "required_temp")
 
         if not room_status and not floor_status:
             self._warning = BMR_WARN_CANNOTCONNECT
@@ -216,9 +238,8 @@ class Bmr(ClimateEntity):
             self._current_hvac_action = None
             self._icon = "mdi:null"
 
-
     def resolveActionModeIcon(self, summer, cooling, heating):
-        #_LOGGER.debug("BMR status in manual update {}".format(status))
+        # _LOGGER.debug("BMR status in manual update {}".format(status))
         if summer == 0 and cooling == 0 and heating == 0:
             self._current_hvac_action = CURRENT_HVAC_IDLE
             self._current_hvac_mode = self.resolve_auto_mode()
@@ -231,7 +252,7 @@ class Bmr(ClimateEntity):
             self._current_hvac_action = CURRENT_HVAC_OFF
             self._current_hvac_mode = HVAC_MODE_OFF
             self._icon = "mdi:white-balance-sunny"
-        if heating == 2: # both room and floor want to heat
+        if heating == 2:  # both room and floor want to heat
             self._current_hvac_action = CURRENT_HVAC_HEAT
             self._current_hvac_mode = self.resolve_auto_mode()
             self._icon = "mdi:radiator"
@@ -252,26 +273,24 @@ class Bmr(ClimateEntity):
             if floor and floor[name]:
                 return floor[name]
             else:
-                return 0 # should not get here, 0 does not work just for status['name']
-
+                return 0  # should not get here, 0 does not work just for status['name']
 
     def resolve_auto_mode(self):
         mode = self._bmr.get_mode_id(self._circuit_id)
-        #_LOGGER.debug("BMR resolve mode for {} is {} (ai {} / sch {})".format(self._circuit_id, mode, self._ai_mode_id, self._schedule_mode_id))
+        # _LOGGER.debug("BMR resolve mode for {} is {} (ai {} / sch {})".format(self._circuit_id, mode, self._ai_mode_id, self._schedule_mode_id))
         if mode == self._ai_mode_id:
-             return HVAC_MODE_AUTO
+            return HVAC_MODE_AUTO
         elif mode == self._schedule_mode_id:
-             return HVAC_MODE_HEAT_COOL
+            return HVAC_MODE_HEAT_COOL
         else:
             return None
 
-
     def set_hvac_mode(self, hvac_mode):
-        if hvac_mode == HVAC_MODE_AUTO: # ai script
+        if hvac_mode == HVAC_MODE_AUTO:  # ai script
             self._bmr.set_mode_id(self._circuit_id, self._ai_mode_id)
             self._bmr.exclude_from_summer([self._floor_circuit_id, self._circuit_id])
             self._bmr.exclude_from_low([self._floor_circuit_id, self._circuit_id])
-        elif hvac_mode == HVAC_MODE_HEAT_COOL: # schedule
+        elif hvac_mode == HVAC_MODE_HEAT_COOL:  # schedule
             self._bmr.set_mode_id(self._circuit_id, self._schedule_mode_id)
             self._bmr.exclude_from_summer([self._floor_circuit_id, self._circuit_id])
             self._bmr.exclude_from_low([self._floor_circuit_id, self._circuit_id])
@@ -294,10 +313,10 @@ class Bmr(ClimateEntity):
         temperature = kwargs.get(ATTR_TEMPERATURE)
         if temperature is None:
             return
-        elif(temperature >= 10 and temperature<= 27):
+        elif temperature >= 10 and temperature <= 27:
             self._bmr.setTargetTemperature(temperature, self._ai_mode_id, self.name)
             self.manualUpdate()
         else:
-            _LOGGER.warn("Chosen temperature=%s is incorrect. It needs to be between 10 and 27.", str(temperature))
-
-
+            _LOGGER.warn(
+                "Chosen temperature=%s is incorrect. It needs to be between 10 and 27.", str(temperature),
+            )

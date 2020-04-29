@@ -19,7 +19,14 @@ from datetime import timedelta
 
 from homeassistant.components.sensor import PLATFORM_SCHEMA
 
-from homeassistant.const import (STATE_ON, STATE_OFF, CONF_NAME, CONF_HOST, CONF_USERNAME, CONF_PASSWORD)
+from homeassistant.const import (
+    STATE_ON,
+    STATE_OFF,
+    CONF_NAME,
+    CONF_HOST,
+    CONF_USERNAME,
+    CONF_PASSWORD,
+)
 import homeassistant.helpers.config_validation as cv
 from homeassistant.components.binary_sensor import BinarySensorDevice
 from homeassistant.util import Throttle
@@ -27,19 +34,23 @@ from homeassistant.util import Throttle
 MIN_TIME_BETWEEN_SCANS = timedelta(seconds=60)
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
-    vol.Required(CONF_HOST): cv.string,
-    vol.Required(CONF_USERNAME): cv.string,
-    vol.Required(CONF_PASSWORD): cv.string
-})
+PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
+    {
+        vol.Required(CONF_HOST): cv.string,
+        vol.Required(CONF_USERNAME): cv.string,
+        vol.Required(CONF_PASSWORD): cv.string,
+    }
+)
+
 
 def setup_platform(hass, config, add_entities, discovery_info=None):
     import pybmr
+
     host = config.get(CONF_HOST)
     user = config.get(CONF_USERNAME)
     password = config.get(CONF_PASSWORD)
 
-    bmr = pybmr.Bmr(host, user, password) # Test connectivity
+    bmr = pybmr.Bmr(host, user, password)  # Test connectivity
     cnt = bmr.getNumCircuits()
     if cnt == None:
         raise Exception("Cannot connect to BMR")
@@ -49,9 +60,9 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
 
 
 class Hdo(BinarySensorDevice):
-
     def __init__(self, bmr):
         import pybmr
+
         self._bmr = bmr
         self._icon = "mdi:restart"
         self._state = None
@@ -59,7 +70,7 @@ class Hdo(BinarySensorDevice):
 
     @property
     def name(self):
-        return 'HDO'
+        return "HDO"
 
     @property
     def should_poll(self):
@@ -67,7 +78,7 @@ class Hdo(BinarySensorDevice):
 
     @property
     def unit_of_measurement(self):
-        return 'nizky tarif'
+        return "nizky tarif"
 
     @property
     def icon(self):
@@ -79,11 +90,9 @@ class Hdo(BinarySensorDevice):
 
     @property
     def device_class(self):
-        return 'plug'
+        return "plug"
 
     @Throttle(MIN_TIME_BETWEEN_SCANS)
     def update(self):
         self._state = self._bmr.loadHDO()
-        self._icon = 'mdi:power-plug' if self._state else 'mdi:power-plug-off'
-
-
+        self._icon = "mdi:power-plug" if self._state else "mdi:power-plug-off"

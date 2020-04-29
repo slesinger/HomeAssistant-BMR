@@ -10,7 +10,7 @@ sensor:
     password: password
 """
 
-__version__ = "1.0"
+_version__ = "1.0"
 
 import logging
 import voluptuous as vol
@@ -19,8 +19,12 @@ from datetime import timedelta
 
 from homeassistant.components.sensor import PLATFORM_SCHEMA
 
-from homeassistant.const import (CONF_NAME, CONF_HOST, CONF_USERNAME, CONF_PASSWORD)
-from homeassistant.components.climate.const import (HVAC_MODE_OFF, HVAC_MODE_AUTO, HVAC_MODE_COOL)
+from homeassistant.const import CONF_NAME, CONF_HOST, CONF_USERNAME, CONF_PASSWORD
+from homeassistant.components.climate.const import (
+    HVAC_MODE_OFF,
+    HVAC_MODE_AUTO,
+    HVAC_MODE_COOL,
+)
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.entity import Entity
 from homeassistant.util import Throttle
@@ -30,20 +34,23 @@ _LOGGER = logging.getLogger(__name__)
 HVAC_MODES = [HVAC_MODE_OFF, HVAC_MODE_COOL, HVAC_MODE_AUTO]
 
 
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
-    vol.Required(CONF_HOST): cv.string,
-    vol.Required(CONF_USERNAME): cv.string,
-    vol.Required(CONF_PASSWORD): cv.string
-})
+PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
+    {
+        vol.Required(CONF_HOST): cv.string,
+        vol.Required(CONF_USERNAME): cv.string,
+        vol.Required(CONF_PASSWORD): cv.string,
+    }
+)
 
 
 def setup_platform(hass, config, add_entities, discovery_info=None):
     import pybmr
+
     host = config.get(CONF_HOST)
     user = config.get(CONF_USERNAME)
     password = config.get(CONF_PASSWORD)
 
-    bmr = pybmr.Bmr(host, user, password) # Test connectivity
+    bmr = pybmr.Bmr(host, user, password)  # Test connectivity
     cnt = bmr.getNumCircuits()
     if cnt == None:
         raise Exception("Cannot connect to BMR")
@@ -53,18 +60,17 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
     add_entities(sensors)
 
     def handle_event(event):
-        if event.data['entity_id']== 'input_select.bmr_rezim':
-            state = event.data['new_state'].as_dict()['state']
+        if event.data["entity_id"] == "input_select.bmr_rezim":
+            state = event.data["new_state"].as_dict()["state"]
             bmr_common.set_hvac_mode(state)
 
-    hass.bus.listen('state_changed', handle_event)
-
+    hass.bus.listen("state_changed", handle_event)
 
 
 class BmrCommon(Entity):
-
     def __init__(self, bmr):
         import pybmr
+
         self._bmr = bmr
         self._icon = "mdi:restart"
         self._current_hvac_mode = None
@@ -76,12 +82,11 @@ class BmrCommon(Entity):
 
     @property
     def name(self):
-        return 'Rezimy BMR Regulatoru'
+        return "Rezimy BMR Regulatoru"
 
     @property
     def icon(self):
         return self._icon
-
 
     @property
     def state(self):
@@ -113,16 +118,16 @@ class BmrCommon(Entity):
 
     def set_hvac_mode(self, hvac_mode):
 
-        if hvac_mode == 'auto':
+        if hvac_mode == "auto":
             hvac_mode = HVAC_MODE_AUTO
-        if hvac_mode == 'rozvrh':
+        if hvac_mode == "rozvrh":
             hvac_mode = HVAC_MODE_AUTO
-        if hvac_mode == 'utlum':
+        if hvac_mode == "utlum":
             hvac_mode = HVAC_MODE_COOL
-        if hvac_mode == 'vypnuto':
+        if hvac_mode == "vypnuto":
             hvac_mode = HVAC_MODE_OFF
 
-        if hvac_mode == HVAC_MODE_AUTO: # summer off, low off
+        if hvac_mode == HVAC_MODE_AUTO:  # summer off, low off
             self._bmr.saveSummerMode(False)
             self._bmr.lowSave(False)
         elif hvac_mode == HVAC_MODE_OFF:
@@ -134,4 +139,3 @@ class BmrCommon(Entity):
         else:
             _LOGGER.warn("Unsupported HVAC mode {}".format(hvac_mode))
         self.manualUpdate()
-
