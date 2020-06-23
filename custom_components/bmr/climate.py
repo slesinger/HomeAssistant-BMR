@@ -8,7 +8,9 @@ configuration.yaml
       base_url: http://192.168.1.254/
       username: !secret bmr_username
       password: !secret bmr_password
-      away_temperature: 18.0
+      away_temperature: 18
+      min_temperature: 18
+      max_temperature: 35
       circuits:
         - name: Kitchen
           circuit: 8
@@ -16,6 +18,8 @@ configuration.yaml
             day_schedules: [1]
             starting_day: 1
           schedule_override: 16
+          min_temperature: 20
+          max_temperature: 24
 """
 
 __version__ = "0.7"
@@ -53,10 +57,10 @@ from homeassistant.util import Throttle as throttle
 PRESET_NORMAL = "Normal"
 PRESET_AWAY = "Away"
 
+_LOGGER = logging.getLogger(__name__)
+
 TEMP_MIN = 7.0
 TEMP_MAX = 35.0
-
-_LOGGER = logging.getLogger(__name__)
 
 CONF_BASE_URL = "base_url"
 CONF_CIRCUITS = "circuits"
@@ -68,6 +72,8 @@ CONF_STARTING_DAY = "starting_day"
 CONF_SCHEDULE_OVERRIDE = "schedule_override"
 CONF_AWAY_TEMPERATURE = "away_temperature"
 CONF_CAN_COOL = "can_cool"
+CONF_MIN_TEMPERATURE = "min_temperature"
+CONF_MAX_TEMPERATURE = "max_temperature"
 
 CONF_CIRCUIT = vol.Schema(
     {
@@ -82,6 +88,8 @@ CONF_CIRCUIT = vol.Schema(
             }
         ),
         vol.Required(CONF_SCHEDULE_OVERRIDE): vol.All(vol.Coerce(int), vol.Range(min=0, max=63)),
+        vol.Optional(CONF_MIN_TEMPERATURE): vol.All(vol.Coerce(int), vol.Range(min=TEMP_MIN, max=TEMP_MAX)),
+        vol.Optional(CONF_MAX_TEMPERATURE): vol.All(vol.Coerce(int), vol.Range(min=TEMP_MIN, max=TEMP_MAX)),
     }
 )
 
@@ -90,8 +98,10 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Required(CONF_BASE_URL): cv.string,
         vol.Required(CONF_USERNAME): cv.string,
         vol.Required(CONF_PASSWORD): cv.string,
-        vol.Optional(CONF_AWAY_TEMPERATURE): vol.All(vol.Coerce(float), vol.Range(min=TEMP_MIN, max=TEMP_MAX)),
+        vol.Optional(CONF_AWAY_TEMPERATURE): vol.All(vol.Coerce(int), vol.Range(min=TEMP_MIN, max=TEMP_MAX)),
         vol.Optional(CONF_CAN_COOL): vol.Coerce(bool),
+        vol.Optional(CONF_MIN_TEMPERATURE): vol.All(vol.Coerce(int), vol.Range(min=TEMP_MIN, max=TEMP_MAX)),
+        vol.Optional(CONF_MAX_TEMPERATURE): vol.All(vol.Coerce(int), vol.Range(min=TEMP_MIN, max=TEMP_MAX)),
         vol.Required(CONF_CIRCUITS): vol.All(cv.ensure_list, [CONF_CIRCUIT]),
     }
 )
@@ -106,8 +116,15 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
 
     bmr = pybmr.Bmr(base_url, user, password)
     entities = [
-        BmrRoomClimate(bmr, circuit, config.get(CONF_AWAY_TEMPERATURE, 18.0), config.get(CONF_CAN_COOL, False),)
-        for circuit in config.get(CONF_CIRCUITS)
+        BmrRoomClimate(
+            bmr=bmr,
+            config=circuit_config,
+            away_temperature=config.get(CONF_AWAY_TEMPERATURE, TEMP_MIN),
+            can_cool=config.get(CONF_CAN_COOL, False),
+            min_temperature=config.get(CONF_MIN_TEMPERATURE),
+            max_temperature=config.get(CONF_MAX_TEMPERATURE),
+        )
+        for circuit_config in config.get(CONF_CIRCUITS)
     ]
     add_entities(entities)
 
@@ -155,11 +172,15 @@ class BmrRoomClimate(ClimateEntity):
           Assistant UI. Even several minutes.
       """
 
-    def __init__(self, bmr, config, away_temperature=18.0, can_cool=False):
+    def __init__(
+        self, bmr, config, away_temperature=18.0, can_cool=False, min_temperature=TEMP_MIN, max_temperature=TEMP_MAX
+    ):
         self._bmr = bmr
         self._config = config
         self._away_temperature = away_temperature
         self._can_cool = can_cool
+        self._min_temperature = min_temperature
+        self._max_temperature = max_temperature
 
         # Initial state
         self._circuit = {}
@@ -194,11 +215,11 @@ class BmrRoomClimate(ClimateEntity):
 
     @property
     def min_temp(self):
-        return TEMP_MIN
+        return self._config.get(CONF_MIN_TEMPERATURE) or self._min_temperature or TEMP_MIN
 
     @property
     def max_temp(self):
-        return TEMP_MAX
+        return self._config.get(CONF_MAX_TEMPERATURE) or self._max_temperature or TEMP_MAX
 
     @property
     def hvac_modes(self):
@@ -344,8 +365,10 @@ class BmrRoomClimate(ClimateEntity):
     def set_temperature(self, **kwargs):
         """ Set new target temperature for the circuit. This works by
             modifying the special "override" schedule and assigning the
-            schedule to the circuit. This is done to avoid overwriting the
-            normal schedule that is used for HVAC_MODE_AUTO.
+            schedule to the circuit.
+
+            This is being done to avoid overwriting the normal schedule used
+            for HVAC_MODE_AUTO.
         """
         temperature = kwargs.get(ATTR_TEMPERATURE)
         self._bmr.setSchedule(
