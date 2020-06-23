@@ -79,11 +79,19 @@ class BmrControllerAwayMode(SwitchEntity):
         self._bmr = bmr
         self._low_mode = {}
 
+        self._unique_id = f"{self._bmr.getUniqueId()}-switch-away"
+
     @property
     def name(self):
         """ Return the name of the entity.
         """
         return "BMR HC64 Away"
+
+    @property
+    def unique_id(self):
+        """ Return unique ID of the entity.
+        """
+        return self._unique_id
 
     @property
     def device_class(self):
@@ -133,6 +141,8 @@ class BmrControllerPowerSwitch(SwitchEntity):
         self._bmr = bmr
         self._circuits = circuits
 
+        self._unique_id = f"{self._bmr.getUniqueId()}-switch-power"
+
         self._summer_mode = None
         self._summer_mode_assignments = {}
 
@@ -141,6 +151,12 @@ class BmrControllerPowerSwitch(SwitchEntity):
         """ Return the name of the entity.
         """
         return "BMR HC64 Power"
+
+    @property
+    def unique_id(self):
+        """ Return unique ID of the entity.
+        """
+        return self._unique_id
 
     @property
     def device_class(self):

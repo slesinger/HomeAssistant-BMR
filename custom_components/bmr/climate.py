@@ -182,6 +182,8 @@ class BmrRoomClimate(ClimateEntity):
         self._min_temperature = min_temperature
         self._max_temperature = max_temperature
 
+        self._unique_id = f"{self._bmr.getUniqueId()}-climate-{self._config.get(CONF_CIRCUIT_ID)}"
+
         # Initial state
         self._circuit = {}
         self._schedule = {}
@@ -194,6 +196,12 @@ class BmrRoomClimate(ClimateEntity):
         """ Return the name of the climate entity.
         """
         return f"BMR HC64 {self._config.get(CONF_NAME)}"
+
+    @property
+    def unique_id(self):
+        """ Return unique ID of the entity.
+        """
+        return self._unique_id
 
     @property
     def temperature_unit(self):

@@ -117,11 +117,21 @@ class BmrCircuitTemperature(BmrCircuitTemperatureBase):
     """ Sensor for reporting the current temperature in BMR HC64 heating circuit.
     """
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._unique_id = f"{self._bmr.getUniqueId()}-sensor-{self._config.get(CONF_CIRCUIT_ID)}-temperature"
+
     @property
     def name(self):
         """ Return the name of the sensor.
         """
         return f"BMR HC64 {self._config.get(CONF_NAME)} temperature"
+
+    @property
+    def unique_id(self):
+        """ Return unique ID of the entity.
+        """
+        return self._unique_id
 
     @property
     def state(self):
@@ -134,11 +144,21 @@ class BmrCircuitTargetTemperature(BmrCircuitTemperatureBase):
     """ Sensor for reporting the current temperature in BMR HC64 heating circuit.
     """
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._unique_id = f"{self._bmr.getUniqueId()}-sensor-{self._config.get(CONF_CIRCUIT_ID)}-target-temperature"
+
     @property
     def name(self):
         """ Return the name of the sensor.
         """
         return f"BMR HC64 {self._config.get(CONF_NAME)} target temperature"
+
+    @property
+    def unique_id(self):
+        """ Return unique ID of the entity.
+        """
+        return self._unique_id
 
     @property
     def state(self):

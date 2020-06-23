@@ -58,11 +58,19 @@ class BmrControllerHDO(BinarySensorEntity):
         self._bmr = bmr
         self._hdo = None
 
+        self._unique_id = f"{self._bmr.getUniqueId()}-binary-sensor-hdo"
+
     @property
     def name(self):
         """ Return the name of the sensor.
         """
         return "BMR HC64 HDO"
+
+    @property
+    def unique_id(self):
+        """ Return unique ID of the entity.
+        """
+        return self._unique_id
 
     @property
     def is_on(self):
