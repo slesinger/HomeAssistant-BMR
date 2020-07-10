@@ -5,133 +5,163 @@ configuration.yaml
 
 sensor:
   - platform: bmr
-    host: ip
+    base_url: http://ip-address/
     user: user
     password: password
+    circuits:
+        - circuit: 0
+          name: Kitchen
+        - circuit: 1
+          name: Living room
 """
 
-__version__ = "1.0"
+__version__ = "0.7"
 
 import logging
-import voluptuous as vol
-
+import socket
 from datetime import timedelta
 
-from homeassistant.components.sensor import PLATFORM_SCHEMA
-
-from homeassistant.const import (CONF_NAME, CONF_HOST, CONF_USERNAME, CONF_PASSWORD)
-from homeassistant.components.climate.const import (HVAC_MODE_OFF, HVAC_MODE_AUTO, HVAC_MODE_COOL)
 import homeassistant.helpers.config_validation as cv
+import voluptuous as vol
+from homeassistant.components.sensor import PLATFORM_SCHEMA
+from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, TEMP_CELSIUS
 from homeassistant.helpers.entity import Entity
-from homeassistant.util import Throttle
+from homeassistant.util import Throttle as throttle
 
-MIN_TIME_BETWEEN_SCANS = timedelta(seconds=60)
 _LOGGER = logging.getLogger(__name__)
-HVAC_MODES = [HVAC_MODE_OFF, HVAC_MODE_COOL, HVAC_MODE_AUTO]
 
+CONF_BASE_URL = "base_url"
+CONF_CIRCUITS = "circuits"
+CONF_NAME = "name"
+CONF_CIRCUIT_ID = "circuit"
+CONF_CIRCUIT = vol.Schema(
+    {
+        vol.Required(CONF_NAME): cv.string,
+        vol.Required(CONF_CIRCUIT_ID): vol.All(vol.Coerce(int), vol.Range(min=0, max=63)),
+    }
+)
 
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
-    vol.Required(CONF_HOST): cv.string,
-    vol.Required(CONF_USERNAME): cv.string,
-    vol.Required(CONF_PASSWORD): cv.string
-})
+PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
+    {
+        vol.Required(CONF_BASE_URL): cv.string,
+        vol.Required(CONF_USERNAME): cv.string,
+        vol.Required(CONF_PASSWORD): cv.string,
+        vol.Required(CONF_CIRCUITS): vol.All(cv.ensure_list, [CONF_CIRCUIT]),
+    }
+)
 
 
 def setup_platform(hass, config, add_entities, discovery_info=None):
     import pybmr
-    host = config.get(CONF_HOST)
+
+    base_url = config.get(CONF_BASE_URL)
     user = config.get(CONF_USERNAME)
     password = config.get(CONF_PASSWORD)
 
-    bmr = pybmr.Bmr(host, user, password) # Test connectivity
-    cnt = bmr.getNumCircuits()
-    if cnt == None:
-        raise Exception("Cannot connect to BMR")
+    bmr = pybmr.Bmr(base_url, user, password)
+    num_circuits = bmr.getNumCircuits()
     sensors = []
-    bmr_common = BmrCommon(bmr)
-    sensors.append(bmr_common)
+    for circuit_config in config.get(CONF_CIRCUITS):
+        if circuit_config.get(CONF_CIRCUIT_ID) < num_circuits:
+            sensors.append(BmrCircuitTemperature(bmr, circuit_config))
+            sensors.append(BmrCircuitTargetTemperature(bmr, circuit_config))
+        else:
+            _LOGGER.warn(f"Circuit ID {circuit_config.get(CONF_CIRCUIT_ID)} is out of range")
+
     add_entities(sensors)
 
-    def handle_event(event):
-        if event.data['entity_id']== 'input_select.bmr_rezim':
-            state = event.data['new_state'].as_dict()['state']
-            bmr_common.set_hvac_mode(state)
 
-    hass.bus.listen('state_changed', handle_event)
+class BmrCircuitTemperatureBase(Entity):
+    """ Base class for temperature reporting sensors.
+    """
 
-
-
-class BmrCommon(Entity):
-
-    def __init__(self, bmr):
-        import pybmr
+    def __init__(self, bmr, config):
         self._bmr = bmr
-        self._icon = "mdi:restart"
-        self._current_hvac_mode = None
-        self.update()
+        self._config = config
+
+        self._circuit = {}
 
     @property
-    def should_poll(self):
-        return True
+    def unit_of_measurement(self):
+        """ Return the unit of measurement.
+        """
+        return TEMP_CELSIUS
+
+    @property
+    def device_state_attributes(self):
+        return {
+            "enabled": self._circuit.get("enabled"),
+            "user_offset": self._circuit.get("user_offset"),
+            "max_offset": self._circuit.get("max_offset"),
+            "warning": self._circuit.get("warning"),
+            "heating": self._circuit.get("heating"),
+            "cooling": self._circuit.get("cooling"),
+            "low_mode": self._circuit.get("low_mode"),
+            "summer_mode": self._circuit.get("summer_mode"),
+            "temperature": self._circuit.get("temperature"),
+            "target_temperature": self._circuit.get("target_temperature"),
+        }
+
+    @throttle(timedelta(seconds=30))
+    def update(self):
+        """ Fetch new state data for the sensor.
+            This is the only method that should fetch new data for Home Assistant.
+        """
+        try:
+            self._circuit = self._bmr.getCircuit(self._config.get(CONF_CIRCUIT_ID))
+        except socket.timeout:
+            _LOGGER.warn("Read from BMR HC64 controller timed out. Retrying later.")
+
+
+class BmrCircuitTemperature(BmrCircuitTemperatureBase):
+    """ Sensor for reporting the current temperature in BMR HC64 heating circuit.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._unique_id = f"{self._bmr.getUniqueId()}-sensor-{self._config.get(CONF_CIRCUIT_ID)}-temperature"
 
     @property
     def name(self):
-        return 'Rezimy BMR Regulatoru'
+        """ Return the name of the sensor.
+        """
+        return f"BMR HC64 {self._config.get(CONF_NAME)} temperature"
 
     @property
-    def icon(self):
-        return self._icon
-
+    def unique_id(self):
+        """ Return unique ID of the entity.
+        """
+        return self._unique_id
 
     @property
     def state(self):
-        return self._current_hvac_mode
+        """ Return the state of the sensor.
+        """
+        return self._circuit.get("temperature")
 
-    @Throttle(MIN_TIME_BETWEEN_SCANS)
-    def update(self):
-        self.manualUpdate()
 
-    def manualUpdate(self):
-        is_summer = self._bmr.loadSummerMode()
-        is_low = self._bmr.loadLows()
-        if is_summer == True:
-            self._current_hvac_mode = HVAC_MODE_OFF
-            self._icon = "mdi:radiator-off"
-            return
-        elif is_summer == False and is_low == True:
-            self._current_hvac_mode = HVAC_MODE_COOL
-            self._icon = "mdi:snowflake"
-            return
-        elif is_summer == False and is_low == False:
-            self._current_hvac_mode = HVAC_MODE_AUTO
-            self._icon = "mdi:brightness-auto"
-            return
-        else:
-            self._current_hvac_mode = None
-            self._icon = "mdi:help"
-            return
+class BmrCircuitTargetTemperature(BmrCircuitTemperatureBase):
+    """ Sensor for reporting the current temperature in BMR HC64 heating circuit.
+    """
 
-    def set_hvac_mode(self, hvac_mode):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._unique_id = f"{self._bmr.getUniqueId()}-sensor-{self._config.get(CONF_CIRCUIT_ID)}-target-temperature"
 
-        if hvac_mode == 'auto':
-            hvac_mode = HVAC_MODE_AUTO
-        if hvac_mode == 'rozvrh':
-            hvac_mode = HVAC_MODE_AUTO
-        if hvac_mode == 'utlum':
-            hvac_mode = HVAC_MODE_COOL
-        if hvac_mode == 'vypnuto':
-            hvac_mode = HVAC_MODE_OFF
+    @property
+    def name(self):
+        """ Return the name of the sensor.
+        """
+        return f"BMR HC64 {self._config.get(CONF_NAME)} target temperature"
 
-        if hvac_mode == HVAC_MODE_AUTO: # summer off, low off
-            self._bmr.saveSummerMode(False)
-            self._bmr.lowSave(False)
-        elif hvac_mode == HVAC_MODE_OFF:
-            self._bmr.saveSummerMode(True)
-            self._bmr.lowSave(True)
-        elif hvac_mode == HVAC_MODE_COOL:
-            self._bmr.saveSummerMode(False)
-            self._bmr.lowSave(True)
-        else:
-            _LOGGER.warn("Unsupported HVAC mode {}".format(hvac_mode))
-        self.manualUpdate()
+    @property
+    def unique_id(self):
+        """ Return unique ID of the entity.
+        """
+        return self._unique_id
 
+    @property
+    def state(self):
+        """ Return the state of the sensor.
+        """
+        return self._circuit.get("target_temperature")
