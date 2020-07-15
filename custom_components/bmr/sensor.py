@@ -50,6 +50,9 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     }
 )
 
+# Max difference between two subsequent temperature measurements.
+MAX_TEMPERATURE_DELTA = 5.0
+
 
 def setup_platform(hass, config, add_entities, discovery_info=None):
     import pybmr
@@ -108,7 +111,13 @@ class BmrCircuitTemperatureBase(Entity):
             This is the only method that should fetch new data for Home Assistant.
         """
         try:
-            self._circuit = self._bmr.getCircuit(self._config.get(CONF_CIRCUIT_ID))
+            circuit = self._bmr.getCircuit(self._config.get(CONF_CIRCUIT_ID))
+            if self._circuit and abs(circuit["temperature"] - self._circuit["temperature"]) >= MAX_TEMPERATURE_DELTA:
+                _LOGGER.warn(
+                    "BMR HC64 controller returned temperature which is too different from the previously seen value."
+                )
+            else:
+                self._circuit = circuit
         except socket.timeout:
             _LOGGER.warn("Read from BMR HC64 controller timed out. Retrying later.")
 
