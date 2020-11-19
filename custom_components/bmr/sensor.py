@@ -62,14 +62,10 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
     password = config.get(CONF_PASSWORD)
 
     bmr = pybmr.Bmr(base_url, user, password)
-    num_circuits = bmr.getNumCircuits()
     sensors = []
     for circuit_config in config.get(CONF_CIRCUITS):
-        if circuit_config.get(CONF_CIRCUIT_ID) < num_circuits:
-            sensors.append(BmrCircuitTemperature(bmr, circuit_config))
-            sensors.append(BmrCircuitTargetTemperature(bmr, circuit_config))
-        else:
-            _LOGGER.warn(f"Circuit ID {circuit_config.get(CONF_CIRCUIT_ID)} is out of range")
+        sensors.append(BmrCircuitTemperature(bmr, circuit_config))
+        sensors.append(BmrCircuitTargetTemperature(bmr, circuit_config))
 
     add_entities(sensors)
 
