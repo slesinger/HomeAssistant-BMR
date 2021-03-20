@@ -108,7 +108,9 @@ class BmrCircuitTemperatureBase(Entity):
         """
         try:
             circuit = self._bmr.getCircuit(self._config.get(CONF_CIRCUIT_ID))
-            if self._circuit and abs(circuit["temperature"] - self._circuit["temperature"]) >= MAX_TEMPERATURE_DELTA:
+            if circuit["temperature"] is None:
+                _LOGGER.warn("BMR HC64 controller returned temperature as None, trying again later.")
+            elif self._circuit and abs(circuit["temperature"] - self._circuit["temperature"]) >= MAX_TEMPERATURE_DELTA:
                 _LOGGER.warn(
                     "BMR HC64 controller returned temperature which is too different from the previously seen value."
                 )
