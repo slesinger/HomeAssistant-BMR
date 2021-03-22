@@ -396,7 +396,11 @@ class BmrRoomClimate(ClimateEntity):
             that should fetch new data for Home Assistant.
         """
         try:
-            self._circuit = self._bmr.getCircuit(self._config.get(CONF_CIRCUIT_ID))
+            circuit = self._bmr.getCircuit(self._config.get(CONF_CIRCUIT_ID))
+            if circuit["temperature"] is None:
+                _LOGGER.warn("BMR HC64 controller returned temperature as None, trying again later.")
+            else:
+                self._circuit = circuit
             self._schedule = self._bmr.getCircuitSchedules(self._config.get(CONF_CIRCUIT_ID))
             self._low_mode = self._bmr.getLowMode()
             self._summer_mode = self._bmr.getSummerMode()
