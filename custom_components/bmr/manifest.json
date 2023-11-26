@@ -1,8 +1,14 @@
 {
-    "domain": "bmr",
-    "name": "BMR",
+    "domain": "bmr_hc64",
+    "name": "BMR HC64",
     "documentation": "https://github.com/slesinger/HomeAssistant-BMR",
     "dependencies": [],
     "codeowners": ["@slesinger"],
+<<<<<<< HEAD
     "requirements": ["pybmr>=0.7.2"]
   }
+=======
+    "version": "1.0.0",
+    "requirements": ["pybmr>=0.7.1"]
+  }
+>>>>>>> 717c935a401f1176eaa55da33eff7cf0826d2ef7

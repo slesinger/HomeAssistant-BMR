@@ -5,85 +5,85 @@ configuration.yaml
 
 binary_sensor:
   - platform: bmr
-    host: ip
+    base_url: http://ip-address/
     user: user
     password: password
 """
 
-__version__ = "1.0"
+__version__ = "0.7"
 
 import logging
-import voluptuous as vol
-
+import socket
 from datetime import timedelta
 
-from homeassistant.components.sensor import PLATFORM_SCHEMA
-
-from homeassistant.const import (STATE_ON, STATE_OFF, CONF_NAME, CONF_HOST, CONF_USERNAME, CONF_PASSWORD)
 import homeassistant.helpers.config_validation as cv
-from homeassistant.components.binary_sensor import BinarySensorDevice
-from homeassistant.util import Throttle
+import voluptuous as vol
+from homeassistant.components.binary_sensor import PLATFORM_SCHEMA, BinarySensorEntity
+from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
+from homeassistant.util import Throttle as throttle
 
-MIN_TIME_BETWEEN_SCANS = timedelta(seconds=60)
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
-    vol.Required(CONF_HOST): cv.string,
-    vol.Required(CONF_USERNAME): cv.string,
-    vol.Required(CONF_PASSWORD): cv.string
-})
+CONF_BASE_URL = "base_url"
+
+PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
+    {
+        vol.Required(CONF_BASE_URL): cv.string,
+        vol.Required(CONF_USERNAME): cv.string,
+        vol.Required(CONF_PASSWORD): cv.string,
+    }
+)
+
 
 def setup_platform(hass, config, add_entities, discovery_info=None):
     import pybmr
-    host = config.get(CONF_HOST)
+
+    base_url = config.get(CONF_BASE_URL)
     user = config.get(CONF_USERNAME)
     password = config.get(CONF_PASSWORD)
 
-    bmr = pybmr.Bmr(host, user, password) # Test connectivity
-    cnt = bmr.getNumCircuits()
-    if cnt == None:
-        raise Exception("Cannot connect to BMR")
-    sensors = []
-    sensors.append(Hdo(bmr))
+    bmr = pybmr.Bmr(base_url, user, password)
+    sensors = [
+        BmrControllerHDO(bmr),
+    ]
+
     add_entities(sensors)
 
 
-class Hdo(BinarySensorDevice):
+class BmrControllerHDO(BinarySensorEntity):
+    """ Binary sensor for reporting HDO (low/high electricity tariff).
+    """
 
     def __init__(self, bmr):
-        import pybmr
         self._bmr = bmr
-        self._icon = "mdi:restart"
-        self._state = None
-        self.update()
+        self._hdo = None
+
+        self._unique_id = f"{self._bmr.getUniqueId()}-binary-sensor-hdo"
 
     @property
     def name(self):
-        return 'HDO'
+        """ Return the name of the sensor.
+        """
+        return "BMR HC64 HDO"
 
     @property
-    def should_poll(self):
-        return True
-
-    @property
-    def unit_of_measurement(self):
-        return 'nizky tarif'
-
-    @property
-    def icon(self):
-        return self._icon
+    def unique_id(self):
+        """ Return unique ID of the entity.
+        """
+        return self._unique_id
 
     @property
     def is_on(self):
-        return self._state
+        """ Return the state of the sensor.
+        """
+        return bool(self._hdo)
 
-    @property
-    def device_class(self):
-        return 'plug'
-
-    @Throttle(MIN_TIME_BETWEEN_SCANS)
+    @throttle(timedelta(seconds=30))
     def update(self):
-        self._state = self._bmr.loadHDO()
-        self._icon = 'mdi:power-plug' if self._state else 'mdi:power-plug-off'
-
-
+        """ Fetch new state data for the sensor.
+            This is the only method that should fetch new data for Home Assistant.
+        """
+        try:
+            self._hdo = self._bmr.getHDO()
+        except socket.timeout:
+            _LOGGER.warn("Read from BMR HC64 controller timed out. Retrying later.")
