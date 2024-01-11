@@ -5,5 +5,5 @@
     "dependencies": [],
     "codeowners": ["@slesinger"],
     "version": "1.0.0",
-    "requirements": ["pybmr>=0.7.6"]
+    "requirements": ["pybmr>=0.7.8"]
   }
