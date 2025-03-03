@@ -34,19 +34,15 @@ import voluptuous as vol
 from homeassistant.components.climate import ClimateEntity, PLATFORM_SCHEMA
 from homeassistant.components.climate.const import (
     HVACAction,
-    HVAC_MODE_AUTO,
-    HVAC_MODE_HEAT,
-    HVAC_MODE_HEAT_COOL,
-    HVAC_MODE_OFF,
-    SUPPORT_PRESET_MODE,
-    SUPPORT_TARGET_TEMPERATURE,
+    HVACMode,
+    ClimateEntityFeature,
 )
 
 from homeassistant.const import (
     ATTR_TEMPERATURE,
     CONF_PASSWORD,
     CONF_USERNAME,
-    TEMP_CELSIUS,
+    UnitOfTemperature,
 )
 import homeassistant.helpers.config_validation as cv
 from homeassistant.util import Throttle as throttle
@@ -204,7 +200,7 @@ class BmrRoomClimate(ClimateEntity):
     def temperature_unit(self):
         """ The unit of temperature measurement for the system.
         """
-        return TEMP_CELSIUS
+        return UnitOfTemperature.CELSIUS
 
     @property
     def current_temperature(self):
@@ -233,9 +229,9 @@ class BmrRoomClimate(ClimateEntity):
         See docs: https://developers.home-assistant.io/docs/core/entity/climate/#hvac-modes
         """
         if self._can_cool:
-            return [HVAC_MODE_OFF, HVAC_MODE_AUTO, HVAC_MODE_HEAT_COOL]
+            return [HVACMode.OFF, HVACMode.AUTO, HVACMode.HEAT_COOL]
         else:
-            return [HVAC_MODE_OFF, HVAC_MODE_AUTO, HVAC_MODE_HEAT]
+            return [HVACMode.OFF, HVACMode.AUTO, HVACMode.HEAT]
 
     @property
     def hvac_mode(self):
@@ -258,21 +254,21 @@ class BmrRoomClimate(ClimateEntity):
             and self._summer_mode_assignments
             and self._summer_mode_assignments[self._config.get(CONF_CIRCUIT_ID)]
         ):
-            return HVAC_MODE_OFF
+            return HVACMode.OFF
         elif [self._config.get(CONF_SCHEDULE_OVERRIDE)] == self._schedule.get("day_schedules"):
             if self._can_cool:
-                return HVAC_MODE_HEAT_COOL
+                return HVACMode.HEAT_COOL
             else:
-                return HVAC_MODE_HEAT
+                return HVACMode.HEAT
         else:
             # The controller is managing everything automatically according to
             # configured schedules.
-            return HVAC_MODE_AUTO
+            return HVACMode.AUTO
 
     def set_hvac_mode(self, hvac_mode):
         """ Set HVAC mode.
         """
-        if hvac_mode == HVAC_MODE_OFF:
+        if hvac_mode == HVACMode.OFF:
             # Turn on the HVAC_MODE_OFF. This will turn off the heating/cooling
             # of the given circuit. This works by:
             #
@@ -297,7 +293,7 @@ class BmrRoomClimate(ClimateEntity):
             if not any(self._bmr.getSummerModeAssignments()):
                 self._bmr.setSummerMode(False)
 
-        if hvac_mode in (HVAC_MODE_HEAT, HVAC_MODE_HEAT_COOL):
+        if hvac_mode in (HVACMode.HEAT, HVACMode.HEAT_COOL):
             # Turn on the HVAC_MODE_HEAT. This will assign the "override"
             # schedule to the circuit. The "override" schedule is used for
             # setting the custom target temperature (see set_temperature()
@@ -316,7 +312,7 @@ class BmrRoomClimate(ClimateEntity):
                 self._config.get(CONF_SCHEDULE).get(CONF_STARTING_DAY, 1),
             )
 
-        if hvac_mode == HVAC_MODE_AUTO:
+        if hvac_mode == HVACMode.AUTO:
             # Turn on the HVAC_MODE_AUTO. Currently this is no-op, as the
             # normal operation is restored in the else branches above.
             pass
@@ -365,7 +361,7 @@ class BmrRoomClimate(ClimateEntity):
     def supported_features(self):
         """ Supported features
         """
-        return SUPPORT_TARGET_TEMPERATURE | SUPPORT_PRESET_MODE
+        return ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.PRESET_MODE
 
     def set_temperature(self, **kwargs):
         """ Set new target temperature for the circuit. This works by
@@ -381,11 +377,11 @@ class BmrRoomClimate(ClimateEntity):
             f"{self._config.get(CONF_NAME)} override",
             [{"time": "00:00", "temperature": temperature}],
         )
-        if self.hvac_mode not in (HVAC_MODE_HEAT, HVAC_MODE_HEAT_COOL):
+        if self.hvac_mode not in (HVACMode.HEAT, HVACMode.HEAT_COOL):
             if self._can_cool:
-                self.set_hvac_mode(HVAC_MODE_HEAT_COOL)
+                self.set_hvac_mode(HVACMode.HEAT_COOL)
             else:
-                self.set_hvac_mode(HVAC_MODE_HEAT)
+                self.set_hvac_mode(HVACMode.HEAT)
 
     @throttle(timedelta(seconds=30))
     def update(self):
