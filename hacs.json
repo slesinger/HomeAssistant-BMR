@@ -3,10 +3,11 @@
     "render_readme": true,
     "domains": [
       "climate",
+      "cover",
       "sensor",
       "binary_sensor",
       "switch"
     ],
     "country": "CZ",
-    "homeassistant": "2023.5.0"
+    "homeassistant": "2024.5.0"
 }
