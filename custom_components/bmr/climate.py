@@ -33,10 +33,7 @@ import voluptuous as vol
 
 from homeassistant.components.climate import ClimateEntity, PLATFORM_SCHEMA
 from homeassistant.components.climate.const import (
-    CURRENT_HVAC_COOL,
-    CURRENT_HVAC_HEAT,
-    CURRENT_HVAC_IDLE,
-    CURRENT_HVAC_OFF,
+    HVACAction,
     HVAC_MODE_AUTO,
     HVAC_MODE_HEAT,
     HVAC_MODE_HEAT_COOL,
@@ -333,13 +330,13 @@ class BmrRoomClimate(ClimateEntity):
             and self._summer_mode_assignments
             and self._summer_mode_assignments[self._config.get(CONF_CIRCUIT_ID)]
         ):
-            return CURRENT_HVAC_OFF
+            return HVACAction.OFF
         elif self._circuit.get("heating"):
-            return CURRENT_HVAC_HEAT
+            return HVACAction.HEATING
         elif self._circuit.get("cooling"):
-            return CURRENT_HVAC_COOL
+            return HVACAction.COOLING
         else:
-            return CURRENT_HVAC_IDLE
+            return HVACAction.IDLE
 
     @property
     def preset_modes(self):

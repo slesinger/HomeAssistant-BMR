@@ -24,7 +24,7 @@ from datetime import timedelta
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 from homeassistant.components.sensor import PLATFORM_SCHEMA
-from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, TEMP_CELSIUS
+from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, UnitOfTemperature
 from homeassistant.helpers.entity import Entity
 from homeassistant.util import Throttle as throttle
 
@@ -84,7 +84,7 @@ class BmrCircuitTemperatureBase(Entity):
     def unit_of_measurement(self):
         """ Return the unit of measurement.
         """
-        return TEMP_CELSIUS
+        return UnitOfTemperature.CELSIUS
 
     @property
     def device_state_attributes(self):
