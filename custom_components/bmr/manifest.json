@@ -4,6 +4,6 @@
     "documentation": "https://github.com/slesinger/HomeAssistant-BMR",
     "dependencies": [],
     "codeowners": ["@slesinger"],
-    "version": "1.0.3",
-    "requirements": ["pybmr>=0.7.11"]
+    "version": "1.0.4",
+    "requirements": ["pybmr>=0.7.12"]
   }
